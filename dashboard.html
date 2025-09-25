@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Blocker - Dashboard</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" type="image/x-icon" href="images/favicon.ico">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1 class="logo">YouTube Blocker</h1>
+            <nav class="nav">
+                <a href="index.html" class="nav-link">Home</a>
+                <a href="dashboard.html" class="nav-link active">Dashboard</a>
+                <a href="analytics.html" class="nav-link">Analytics</a>
+                <button id="logoutBtn" class="btn btn-secondary">Logout</button>
+            </nav>
+        </header>
+
+        <main class="main-content">
+            <div class="dashboard-header">
+                <h2>Dashboard</h2>
+                <p>Manage your YouTube usage and settings</p>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>Today's Usage</h3>
+                    <div class="stat-value" id="todayUsage">0s</div>
+                    <div class="stat-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="usageProgress"></div>
+                        </div>
+                        <span id="usagePercentage">0%</span>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <h3>Daily Limit</h3>
+                    <div class="stat-value" id="dailyLimit">120 minutes</div>
+                    <button id="editLimitBtn" class="btn btn-secondary btn-small">Edit</button>
+                </div>
+
+                <div class="stat-card">
+                    <h3>Status</h3>
+                    <div class="stat-value" id="statusText">Active</div>
+                    <div class="status-indicator" id="statusIndicator"></div>
+                </div>
+            </div>
+
+            <div class="action-section">
+                <button id="goToYouTubeBtn" class="btn btn-primary btn-large">
+                    Go to YouTube
+                </button>
+                <div class="action-info">
+                    <p id="blockMessage" class="hidden">You've reached your daily limit. YouTube is blocked until tomorrow.</p>
+                </div>
+            </div>
+
+            <div class="settings-card">
+                <h3>Settings</h3>
+                <div class="setting-item">
+                    <label for="customLimit">Daily YouTube Limit (minutes):</label>
+                    <input type="number" id="customLimit" min="1" max="1440" value="120">
+                    <button id="saveLimitBtn" class="btn btn-primary">Save</button>
+                </div>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <p>&copy; 2024 YouTube Blocker. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <!-- Block Overlay -->
+    <div id="blockOverlay" class="block-overlay hidden">
+        <div class="block-message">
+            <h2>⏰ Time's Up!</h2>
+            <p>You've reached your daily YouTube limit of <span id="limitDisplay"></span>.</p>
+            <p>YouTube will be available again after midnight.</p>
+            <button id="closeOverlay" class="btn btn-primary">Okay</button>
+        </div>
+    </div>
+
+    <script type="module" src="js/firebase-config.js"></script>
+    <script type="module" src="js/dashboard.js"></script>
+    <script type="module" src="js/blocker.js"></script>
+</body>
+</html>

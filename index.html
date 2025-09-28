@@ -1,103 +1,526 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Basic Whiteboard</title>
-  <style>
-    body {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 0;
-      background: #f0f0f0;
-    }
-    #toolbar {
-      margin: 10px;
-    }
-    button {
-      margin-right: 10px;
-      padding: 8px 16px;
-      font-size: 16px;
-      cursor: pointer;
-    }
-    canvas {
-      border: 2px solid #000;
-      background: #fff;
-      touch-action: none;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Whiteboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .whiteboard-container {
+            display: flex;
+            flex-direction: column;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px;
+            background: #2c3e50;
+            color: white;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .tool-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .tool {
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+        }
+
+        .tool:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .tool.active {
+            background: #3498db;
+            box-shadow: 0 0 0 2px white, 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .pen {
+            background: #e74c3c;
+        }
+
+        .highlighter {
+            background: #f39c12;
+        }
+
+        .eraser {
+            background: #95a5a6;
+        }
+
+        .color-picker {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .color-option {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.2s;
+        }
+
+        .color-option:hover {
+            transform: scale(1.2);
+        }
+
+        .color-option.active {
+            border-color: white;
+            transform: scale(1.2);
+        }
+
+        .size-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .size-slider {
+            width: 120px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .clear-btn {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .save-btn {
+            background: #2ecc71;
+            color: white;
+        }
+
+        canvas {
+            display: block;
+            background: white;
+            cursor: crosshair;
+            width: 100%;
+            height: 500px;
+        }
+
+        footer {
+            text-align: center;
+            color: white;
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .instructions {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .instructions h2 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        .instructions ul {
+            list-style-type: none;
+            padding-left: 10px;
+        }
+
+        .instructions li {
+            margin-bottom: 10px;
+            padding-left: 25px;
+            position: relative;
+        }
+
+        .instructions li:before {
+            content: "•";
+            color: #3498db;
+            font-size: 1.5rem;
+            position: absolute;
+            left: 0;
+            top: -5px;
+        }
+
+        @media (max-width: 768px) {
+            .toolbar {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .tool-group {
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
 </head>
 <body>
-  <div id="toolbar">
-    <button id="pen">Pen</button>
-    <button id="eraser">Eraser</button>
-    <button id="clear">Clear</button>
-  </div>
-  <canvas id="board" width="800" height="500"></canvas>
+    <div class="container">
+        <header>
+            <h1>Web Whiteboard</h1>
+            <p class="subtitle">Draw, highlight, and erase - all in your browser with no backend required</p>
+        </header>
 
-  <script>
-    const canvas = document.getElementById('board');
-    const ctx = canvas.getContext('2d');
+        <div class="whiteboard-container">
+            <div class="toolbar">
+                <div class="tool-group">
+                    <div class="tool pen active" data-tool="pen">
+                        <span>✏️</span> Pen
+                    </div>
+                    <div class="tool highlighter" data-tool="highlighter">
+                        <span>🖍️</span> Highlighter
+                    </div>
+                    <div class="tool eraser" data-tool="eraser">
+                        <span>🧽</span> Eraser
+                    </div>
+                </div>
 
-    let drawing = false;
-    let tool = 'pen';
-    let lastX = 0;
-    let lastY = 0;
-    const penColor = '#000';
-    const penWidth = 2;
-    const eraserWidth = 20;
+                <div class="tool-group">
+                    <div class="color-picker">
+                        <div class="color-option active" style="background-color: #000000;" data-color="#000000"></div>
+                        <div class="color-option" style="background-color: #e74c3c;" data-color="#e74c3c"></div>
+                        <div class="color-option" style="background-color: #3498db;" data-color="#3498db"></div>
+                        <div class="color-option" style="background-color: #2ecc71;" data-color="#2ecc71"></div>
+                        <div class="color-option" style="background-color: #f1c40f;" data-color="#f1c40f"></div>
+                    </div>
+                </div>
 
-    function startDraw(e) {
-      drawing = true;
-      [lastX, lastY] = [e.offsetX || e.touches[0].clientX - canvas.offsetLeft,
-                        e.offsetY || e.touches[0].clientY - canvas.offsetTop];
-    }
+                <div class="tool-group">
+                    <div class="size-control">
+                        <span>Size:</span>
+                        <input type="range" min="1" max="50" value="5" class="size-slider" id="brushSize">
+                    </div>
+                </div>
 
-    function draw(e) {
-      if (!drawing) return;
+                <div class="tool-group">
+                    <div class="action-buttons">
+                        <button class="clear-btn" id="clearBtn">
+                            <span>🗑️</span> Clear
+                        </button>
+                        <button class="save-btn" id="saveBtn">
+                            <span>💾</span> Save
+                        </button>
+                    </div>
+                </div>
+            </div>
 
-      const x = e.offsetX || e.touches[0].clientX - canvas.offsetLeft;
-      const y = e.offsetY || e.touches[0].clientY - canvas.offsetTop;
+            <canvas id="whiteboard"></canvas>
+        </div>
 
-      ctx.beginPath();
-      ctx.moveTo(lastX, lastY);
-      ctx.lineTo(x, y);
+        <div class="instructions">
+            <h2>How to Use the Whiteboard</h2>
+            <ul>
+                <li><strong>Pen:</strong> Draw with a solid line. Change color and size using the controls.</li>
+                <li><strong>Highlighter:</strong> Draw with a semi-transparent line, perfect for highlighting.</li>
+                <li><strong>Eraser:</strong> Remove parts of your drawing by dragging over them.</li>
+                <li><strong>Clear:</strong> Wipe the entire canvas clean and start over.</li>
+                <li><strong>Save:</strong> Download your drawing as a PNG image file.</li>
+            </ul>
+        </div>
 
-      if (tool === 'pen') {
-        ctx.strokeStyle = penColor;
-        ctx.lineWidth = penWidth;
-      } else if (tool === 'eraser') {
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = eraserWidth;
-      }
+        <footer>
+            <p>Web Whiteboard &copy; 2023 | No backend required - works entirely in your browser</p>
+        </footer>
+    </div>
 
-      ctx.lineCap = 'round';
-      ctx.stroke();
-      [lastX, lastY] = [x, y];
-    }
-
-    function stopDraw() {
-      drawing = false;
-    }
-
-    // Event listeners
-    canvas.addEventListener('mousedown', startDraw);
-    canvas.addEventListener('mousemove', draw);
-    canvas.addEventListener('mouseup', stopDraw);
-    canvas.addEventListener('mouseout', stopDraw);
-
-    // Touch events for mobile
-    canvas.addEventListener('touchstart', startDraw);
-    canvas.addEventListener('touchmove', draw);
-    canvas.addEventListener('touchend', stopDraw);
-
-    // Toolbar buttons
-    document.getElementById('pen').addEventListener('click', () => tool = 'pen');
-    document.getElementById('eraser').addEventListener('click', () => tool = 'eraser');
-    document.getElementById('clear').addEventListener('click', () => ctx.clearRect(0, 0, canvas.width, canvas.height));
-  </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const canvas = document.getElementById('whiteboard');
+            const ctx = canvas.getContext('2d');
+            const clearBtn = document.getElementById('clearBtn');
+            const saveBtn = document.getElementById('saveBtn');
+            const brushSize = document.getElementById('brushSize');
+            const tools = document.querySelectorAll('.tool');
+            const colorOptions = document.querySelectorAll('.color-option');
+            
+            // Set canvas dimensions
+            function resizeCanvas() {
+                const container = canvas.parentElement;
+                canvas.width = container.clientWidth;
+                canvas.height = 500;
+                
+                // Redraw existing content if any
+                redrawCanvas();
+            }
+            
+            // Initial canvas setup
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            
+            // Drawing state
+            let isDrawing = false;
+            let lastX = 0;
+            let lastY = 0;
+            let currentTool = 'pen';
+            let currentColor = '#000000';
+            let currentSize = 5;
+            let drawingHistory = [];
+            let currentStep = -1;
+            
+            // Set initial drawing style
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            
+            // Tool selection
+            tools.forEach(tool => {
+                tool.addEventListener('click', function() {
+                    tools.forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    currentTool = this.getAttribute('data-tool');
+                    
+                    // Update cursor based on tool
+                    if (currentTool === 'eraser') {
+                        canvas.style.cursor = 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'24\' height=\'24\'><circle cx=\'12\' cy=\'12\' r=\'10\' fill=\'white\' stroke=\'black\'/></svg>") 12 12, auto';
+                    } else {
+                        canvas.style.cursor = 'crosshair';
+                    }
+                });
+            });
+            
+            // Color selection
+            colorOptions.forEach(color => {
+                color.addEventListener('click', function() {
+                    colorOptions.forEach(c => c.classList.remove('active'));
+                    this.classList.add('active');
+                    currentColor = this.getAttribute('data-color');
+                });
+            });
+            
+            // Brush size
+            brushSize.addEventListener('input', function() {
+                currentSize = this.value;
+            });
+            
+            // Drawing functions
+            function startDrawing(e) {
+                isDrawing = true;
+                [lastX, lastY] = getCoordinates(e);
+                
+                // For eraser, we need to save the current canvas state
+                if (currentTool === 'eraser') {
+                    saveCanvasState();
+                }
+            }
+            
+            function draw(e) {
+                if (!isDrawing) return;
+                
+                const [x, y] = getCoordinates(e);
+                
+                ctx.beginPath();
+                ctx.moveTo(lastX, lastY);
+                ctx.lineTo(x, y);
+                
+                // Set drawing properties based on tool
+                if (currentTool === 'pen') {
+                    ctx.globalCompositeOperation = 'source-over';
+                    ctx.strokeStyle = currentColor;
+                    ctx.lineWidth = currentSize;
+                } else if (currentTool === 'highlighter') {
+                    ctx.globalCompositeOperation = 'multiply';
+                    ctx.strokeStyle = currentColor + '80'; // Add transparency
+                    ctx.lineWidth = currentSize * 2;
+                } else if (currentTool === 'eraser') {
+                    ctx.globalCompositeOperation = 'destination-out';
+                    ctx.strokeStyle = 'rgba(0,0,0,1)';
+                    ctx.lineWidth = currentSize * 2;
+                }
+                
+                ctx.stroke();
+                
+                [lastX, lastY] = [x, y];
+            }
+            
+            function stopDrawing() {
+                isDrawing = false;
+                
+                // Save canvas state after drawing (except for eraser which saves at start)
+                if (currentTool !== 'eraser') {
+                    saveCanvasState();
+                }
+            }
+            
+            function getCoordinates(e) {
+                let x, y;
+                
+                if (e.type.includes('mouse')) {
+                    x = e.offsetX;
+                    y = e.offsetY;
+                } else {
+                    // For touch events
+                    const rect = canvas.getBoundingClientRect();
+                    x = e.touches[0].clientX - rect.left;
+                    y = e.touches[0].clientY - rect.top;
+                }
+                
+                return [x, y];
+            }
+            
+            // Canvas history management
+            function saveCanvasState() {
+                // Remove any future states if we're not at the end
+                if (currentStep < drawingHistory.length - 1) {
+                    drawingHistory = drawingHistory.slice(0, currentStep + 1);
+                }
+                
+                // Save current canvas state
+                drawingHistory.push(canvas.toDataURL());
+                currentStep++;
+            }
+            
+            function redrawCanvas() {
+                if (drawingHistory.length === 0) {
+                    // Clear canvas
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    return;
+                }
+                
+                const img = new Image();
+                img.onload = function() {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                };
+                img.src = drawingHistory[currentStep];
+            }
+            
+            // Clear canvas
+            clearBtn.addEventListener('click', function() {
+                if (confirm('Are you sure you want to clear the canvas?')) {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    drawingHistory = [];
+                    currentStep = -1;
+                }
+            });
+            
+            // Save drawing
+            saveBtn.addEventListener('click', function() {
+                const link = document.createElement('a');
+                link.download = 'whiteboard-drawing.png';
+                link.href = canvas.toDataURL();
+                link.click();
+            });
+            
+            // Event listeners for drawing
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseout', stopDrawing);
+            
+            // Touch events for mobile devices
+            canvas.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                startDrawing(e);
+            });
+            
+            canvas.addEventListener('touchmove', function(e) {
+                e.preventDefault();
+                draw(e);
+            });
+            
+            canvas.addEventListener('touchend', function(e) {
+                e.preventDefault();
+                stopDrawing();
+            });
+            
+            // Draw a welcome message
+            ctx.font = '24px Arial';
+            ctx.fillStyle = '#3498db';
+            ctx.textAlign = 'center';
+            ctx.fillText('Start drawing on your whiteboard!', canvas.width / 2, canvas.height / 2);
+        });
+    </script>
 </body>
 </html>

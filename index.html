@@ -1,54 +1,103 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube Blocker - Home</title>
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="icon" type="image/x-icon" href="images/favicon.ico">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Basic Whiteboard</title>
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f0f0f0;
+    }
+    #toolbar {
+      margin: 10px;
+    }
+    button {
+      margin-right: 10px;
+      padding: 8px 16px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    canvas {
+      border: 2px solid #000;
+      background: #fff;
+      touch-action: none;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <header class="header">
-            <h1 class="logo">YouTube Blocker</h1>
-            <nav class="nav">
-                <a href="index.html" class="nav-link active">Home</a>
-                <a href="login.html" class="nav-link">Login</a>
-                <a href="dashboard.html" class="nav-link">Dashboard</a>
-                <a href="analytics.html" class="nav-link">Analytics</a>
-            </nav>
-        </header>
+  <div id="toolbar">
+    <button id="pen">Pen</button>
+    <button id="eraser">Eraser</button>
+    <button id="clear">Clear</button>
+  </div>
+  <canvas id="board" width="800" height="500"></canvas>
 
-        <main class="main-content">
-            <section class="hero">
-                <div class="hero-content">
-                    <h2>Take Control of Your YouTube Usage</h2>
-                    <p>Set daily limits, track your screen time, and boost productivity with our intelligent YouTube blocker.</p>
-                    <div class="hero-features">
-                        <div class="feature-card">
-                            <h3>⏰ Daily Time Limits</h3>
-                            <p>Set custom daily limits for YouTube usage</p>
-                        </div>
-                        <div class="feature-card">
-                            <h3>📊 Detailed Analytics</h3>
-                            <p>Track your usage with daily, weekly, and monthly reports</p>
-                        </div>
-                        <div class="feature-card">
-                            <h3>🔒 Strict Blocking</h3>
-                            <p>Complete lock when daily limit is reached</p>
-                        </div>
-                    </div>
-                    <a href="login.html" class="btn btn-primary">Get Started</a>
-                </div>
-            </section>
-        </main>
+  <script>
+    const canvas = document.getElementById('board');
+    const ctx = canvas.getContext('2d');
 
-        <footer class="footer">
-            <p>&copy; 2024 YouTube Blocker. All rights reserved.</p>
-        </footer>
-    </div>
+    let drawing = false;
+    let tool = 'pen';
+    let lastX = 0;
+    let lastY = 0;
+    const penColor = '#000';
+    const penWidth = 2;
+    const eraserWidth = 20;
 
-    <script type="module" src="js/firebase-config.js"></script>
-    <script src="js/utils.js"></script>
+    function startDraw(e) {
+      drawing = true;
+      [lastX, lastY] = [e.offsetX || e.touches[0].clientX - canvas.offsetLeft,
+                        e.offsetY || e.touches[0].clientY - canvas.offsetTop];
+    }
+
+    function draw(e) {
+      if (!drawing) return;
+
+      const x = e.offsetX || e.touches[0].clientX - canvas.offsetLeft;
+      const y = e.offsetY || e.touches[0].clientY - canvas.offsetTop;
+
+      ctx.beginPath();
+      ctx.moveTo(lastX, lastY);
+      ctx.lineTo(x, y);
+
+      if (tool === 'pen') {
+        ctx.strokeStyle = penColor;
+        ctx.lineWidth = penWidth;
+      } else if (tool === 'eraser') {
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = eraserWidth;
+      }
+
+      ctx.lineCap = 'round';
+      ctx.stroke();
+      [lastX, lastY] = [x, y];
+    }
+
+    function stopDraw() {
+      drawing = false;
+    }
+
+    // Event listeners
+    canvas.addEventListener('mousedown', startDraw);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stopDraw);
+    canvas.addEventListener('mouseout', stopDraw);
+
+    // Touch events for mobile
+    canvas.addEventListener('touchstart', startDraw);
+    canvas.addEventListener('touchmove', draw);
+    canvas.addEventListener('touchend', stopDraw);
+
+    // Toolbar buttons
+    document.getElementById('pen').addEventListener('click', () => tool = 'pen');
+    document.getElementById('eraser').addEventListener('click', () => tool = 'eraser');
+    document.getElementById('clear').addEventListener('click', () => ctx.clearRect(0, 0, canvas.width, canvas.height));
+  </script>
 </body>
 </html>

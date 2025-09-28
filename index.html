@@ -3,24 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smartboard Whiteboard</title>
+    <title>Smartboard Whiteboard Pro</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         body {
             margin: 0;
-            overflow: hidden; /* Prevent scrollbars */
+            overflow: hidden;
             font-family: Arial, sans-serif;
             user-select: none;
             background-color: #f0f0f0;
         }
 
-        /* 1. Full Screen Canvas */
         #whiteboard {
             display: block;
-            background-color: white; /* Default background */
+            background-color: white;
             cursor: crosshair;
         }
 
-        /* 2. Tool Control Panel */
         #controls {
             position: fixed;
             top: 10px;
@@ -97,11 +96,11 @@
     <canvas id="whiteboard"></canvas>
 
     <div id="controls">
-        <button class="tool-button active" data-tool="pen">✏️ Normal Pen</button>
-        <button class="tool-button" data-tool="fountain">🖋️ Fountain Pen</button>
-        <button class="tool-button" data-tool="brush">🎨 Brush Pen</button>
-        <button class="tool-button" data-tool="shape">📐 Shape Tool</button>
-        <button class="tool-button" data-tool="text">✍️ Text Tool</button>
+        <button class="tool-button active" data-tool="pen">✏️ Pen</button>
+        <button class="tool-button" data-tool="fountain">🖋️ Fountain</button>
+        <button class="tool-button" data-tool="brush">🎨 Brush</button>
+        <button class="tool-button" data-tool="shape">🔲 Shape/Line</button>
+        <button class="tool-button" data-tool="text">✍️ Text</button>
         <button class="tool-button" data-tool="eraser">🔪 Eraser</button>
 
         <label for="line-width">Width:</label>
@@ -112,7 +111,8 @@
         <label for="bg-color">BG:</label>
         <input type="color" id="bg-color" value="#FFFFFF">
 
-        <button class="tool-button" id="save-btn">💾 Save PNG</button>
+        <button class="tool-button" id="save-pdf-btn">📄 Save PDF</button>
+        <button class="tool-button" id="save-png-btn">💾 Save PNG</button>
     </div>
 
     <div id="slide-controls">
@@ -126,7 +126,8 @@
         const canvas = document.getElementById('whiteboard');
         const ctx = canvas.getContext('2d');
         const controls = document.getElementById('controls');
-        
+        const { jsPDF } = window.jspdf; // Get jsPDF from the window object
+
         let isDrawing = false;
         let currentTool = 'pen';
         let currentStroke = [];
@@ -135,7 +136,7 @@
         // --- State Management (Slides) ---
         let slides = [{
             backgroundColor: '#FFFFFF',
-            drawingObjects: [] // Stores all strokes/shapes for the slide
+            drawingObjects: []
         }];
         let currentSlideIndex = 0;
 
@@ -147,7 +148,7 @@
         function resizeCanvas() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-            redrawCanvas(); // Redraw content when size changes
+            redrawCanvas();
         }
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
@@ -160,7 +161,7 @@
             
             // 1. Set Background
             canvas.style.backgroundColor = slide.backgroundColor;
-            ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas area
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
             
             // 2. Redraw all stored objects
             slide.drawingObjects.forEach(obj => {
@@ -168,7 +169,8 @@
                 ctx.lineWidth = obj.width;
                 ctx.lineCap = obj.cap || 'round';
                 ctx.lineJoin = 'round';
-                
+                ctx.fillStyle = obj.color; // For text
+
                 if (obj.type === 'stroke') {
                     // Draw a freehand stroke
                     ctx.beginPath();
@@ -183,14 +185,16 @@
                     ctx.stroke();
 
                 } else if (obj.type === 'shape') {
-                    // Draw a perfect shape (Rectangle, Circle, etc.)
+                    // Draw a perfect shape (Rectangle, Circle, Line)
                     ctx.beginPath();
                     if (obj.shapeType === 'rect') {
                         ctx.rect(obj.x, obj.y, obj.width, obj.height);
                     } else if (obj.shapeType === 'circle') {
-                        // Simple circle using distance as radius
-                        const radius = Math.sqrt(Math.pow(obj.width, 2) + Math.pow(obj.height, 2));
-                        ctx.arc(obj.x, obj.y, radius, 0, 2 * Math.PI);
+                        // Center is obj.x, obj.y. Radius is derived from hypotenuse of width/height
+                        const radius = Math.sqrt(Math.pow(obj.width, 2) + Math.pow(obj.height, 2)) / 2;
+                        const centerX = obj.x + obj.width / 2;
+                        const centerY = obj.y + obj.height / 2;
+                        ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
                     } else if (obj.shapeType === 'line') {
                         ctx.moveTo(obj.x, obj.y);
                         ctx.lineTo(obj.x + obj.width, obj.y + obj.height);
@@ -198,9 +202,8 @@
                     ctx.stroke();
 
                 } else if (obj.type === 'text') {
-                    // PLACEHOLDER: Draw recognized text
-                    ctx.fillStyle = obj.color;
-                    ctx.font = `${obj.width * 4}px Arial`; // Use line width for text size
+                    // Placeholder for text
+                    ctx.font = `${obj.width * 4}px Arial`;
                     ctx.fillText(obj.text, obj.x, obj.y);
                 }
             });
@@ -209,7 +212,6 @@
         // --- Event Handlers (Mouse/Touch) ---
 
         function startDrawing(e) {
-            // Ignore if event is over the controls panel
             if (e.target.closest('#controls') || e.target.closest('#slide-controls')) return;
 
             isDrawing = true;
@@ -220,23 +222,26 @@
             startY = y;
             currentStroke = [{ x, y }];
 
-            // Start path for immediate visual feedback
-            ctx.beginPath();
-            ctx.moveTo(x, y);
+            if (currentTool !== 'shape' && currentTool !== 'text') {
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+            }
 
             if (currentTool === 'text') {
-                // For the Text Tool, we immediately finalize a text object on click
-                const slide = slides[currentSlideIndex];
-                slide.drawingObjects.push({
-                    type: 'text',
-                    text: 'Type Text Here', // Placeholder, in a real app this would prompt for input
-                    x: x,
-                    y: y,
-                    color: penColor,
-                    width: lineWidth
-                });
-                redrawCanvas();
-                isDrawing = false; // Stop drawing immediately
+                // Simplified text placement for demonstration
+                const textInput = prompt("Enter text:", "My Text");
+                if (textInput) {
+                    slides[currentSlideIndex].drawingObjects.push({
+                        type: 'text',
+                        text: textInput,
+                        x: x,
+                        y: y,
+                        color: penColor,
+                        width: lineWidth
+                    });
+                    redrawCanvas();
+                }
+                isDrawing = false; // Stop drawing immediately after placement/prompt
             }
         }
 
@@ -246,10 +251,12 @@
             const x = e.clientX || e.touches[0].clientX;
             const y = e.clientY || e.touches[0].clientY;
 
-            // Add point to current stroke
-            currentStroke.push({ x, y });
+            // Add point to current stroke (only used for freehand tools)
+            if (currentTool !== 'shape') {
+                currentStroke.push({ x, y });
+            }
 
-            // Set drawing style based on tool
+            // Set drawing style
             ctx.strokeStyle = (currentTool === 'eraser') ? slides[currentSlideIndex].backgroundColor : penColor;
             ctx.lineWidth = lineWidth;
             ctx.lineCap = 'round';
@@ -261,30 +268,45 @@
                 ctx.stroke();
 
             } else if (currentTool === 'fountain' || currentTool === 'brush') {
-                // Simple pressure simulation (based on distance from last point)
+                // Simple pressure simulation
                 const lastPoint = currentStroke[currentStroke.length - 2];
                 const distance = Math.sqrt(Math.pow(x - lastPoint.x, 2) + Math.pow(y - lastPoint.y, 2));
-                const dynamicWidth = Math.max(1, lineWidth - distance * 0.5); // Thicker line if drawn slower
+                const dynamicWidth = Math.max(1, lineWidth - distance * 0.5);
                 
                 ctx.lineWidth = dynamicWidth;
                 ctx.lineTo(x, y);
                 ctx.stroke();
-                ctx.beginPath(); // New path segment for continuous line
-                ctx.moveTo(x, y); // Move to current point for next segment
+                ctx.beginPath();
+                ctx.moveTo(x, y);
 
             } else if (currentTool === 'shape') {
-                // Draw a temporary shape overlay
-                redrawCanvas(); // Redraw previous content
+                // Draw temporary shape overlay
+                redrawCanvas();
                 ctx.strokeStyle = penColor;
                 ctx.lineWidth = lineWidth;
-                ctx.setLineDash([]); // Ensure no dotted lines
+                ctx.setLineDash([]);
                 
                 const width = x - startX;
                 const height = y - startY;
 
+                // Determine shape type (Shift key for Circle/Square)
+                const isSquareOrCircle = e.shiftKey;
+                const absWidth = Math.abs(width);
+                const absHeight = Math.abs(height);
+                const size = Math.max(absWidth, absHeight); // Used for square/circle
+                
                 ctx.beginPath();
-                // Draw a perfect rectangle
-                ctx.rect(startX, startY, width, height);
+                if (isSquareOrCircle) {
+                    // Draw a circle (center at startX + width/2, startY + height/2)
+                    ctx.arc(startX + width/2, startY + height/2, size / 2, 0, 2 * Math.PI);
+                } else if (e.altKey) { 
+                    // Alt key for Line (Optional)
+                    ctx.moveTo(startX, startY);
+                    ctx.lineTo(x, y);
+                } else {
+                    // Draw a rectangle
+                    ctx.rect(startX, startY, width, height);
+                }
                 ctx.stroke();
             }
         }
@@ -294,70 +316,71 @@
             isDrawing = false;
             
             const slide = slides[currentSlideIndex];
-            
-            // Finalize drawing based on the tool
+            const finalX = e.clientX || e.changedTouches[0].clientX;
+            const finalY = e.clientY || e.changedTouches[0].clientY;
+
             if (currentTool === 'pen' || currentTool === 'fountain' || currentTool === 'brush') {
-                // Save the freehand stroke (even if it was dynamically rendered)
+                // Save the freehand stroke
                 slide.drawingObjects.push({
                     type: 'stroke',
                     points: currentStroke,
                     color: penColor,
-                    width: lineWidth,
-                    cap: 'round'
+                    width: lineWidth
                 });
-            } else if (currentTool === 'eraser') {
-                // NOTE: Eraser on canvas removes pixels, but doesn't remove stored objects.
-                // For true object erasure, you'd need an advanced collision detection system here.
-                // For now, it's a 'pixel' eraser.
             } else if (currentTool === 'shape') {
-                // Save the final shape object
-                const finalX = e.clientX || e.changedTouches[0].clientX;
-                const finalY = e.clientY || e.changedTouches[0].clientY;
                 const width = finalX - startX;
                 const height = finalY - startY;
-                
+                const isSquareOrCircle = e.shiftKey;
+
+                let shapeType = 'rect';
+                let objWidth = width;
+                let objHeight = height;
+
+                if (isSquareOrCircle) {
+                    shapeType = 'circle';
+                    // Use the larger dimension for a radius (to make a perfect circle)
+                    objWidth = Math.max(Math.abs(width), Math.abs(height)) * Math.sign(width);
+                    objHeight = Math.max(Math.abs(width), Math.abs(height)) * Math.sign(height);
+                } else if (e.altKey) {
+                    shapeType = 'line';
+                }
+
                 slide.drawingObjects.push({
                     type: 'shape',
-                    shapeType: 'rect', // Default to rectangle
+                    shapeType: shapeType,
                     x: startX,
                     y: startY,
-                    width: width,
-                    height: height,
+                    width: objWidth,
+                    height: objHeight,
                     color: penColor,
                     width: lineWidth
                 });
             }
             
-            // Reset composite operation after drawing/erasing
             ctx.globalCompositeOperation = 'source-over';
             currentStroke = [];
-            redrawCanvas();
+            redrawCanvas(); // Redraw once with the finalized object
         }
 
         // --- Event Listeners for Drawing ---
         canvas.addEventListener('mousedown', startDrawing);
         canvas.addEventListener('mousemove', draw);
         canvas.addEventListener('mouseup', stopDrawing);
-        canvas.addEventListener('mouseout', stopDrawing); // Stop if mouse leaves canvas
+        canvas.addEventListener('mouseout', stopDrawing);
 
-        // Touch support for smartboards
+        // Touch support
         canvas.addEventListener('touchstart', (e) => startDrawing(e));
         canvas.addEventListener('touchmove', (e) => {
-            e.preventDefault(); // Prevent scrolling on touch move
+            e.preventDefault();
             draw(e);
         });
         canvas.addEventListener('touchend', stopDrawing);
 
         // --- UI Control Handlers ---
-
-        // Tool Selection
         controls.addEventListener('click', (e) => {
             if (e.target.classList.contains('tool-button')) {
-                // Update active class
                 document.querySelectorAll('.tool-button').forEach(btn => btn.classList.remove('active'));
                 e.target.classList.add('active');
-
-                // Update current tool
                 const tool = e.target.getAttribute('data-tool');
                 if (tool) {
                     currentTool = tool;
@@ -366,17 +389,14 @@
             }
         });
 
-        // Width Range
         document.getElementById('line-width').addEventListener('input', (e) => {
             lineWidth = parseInt(e.target.value);
         });
 
-        // Pen Color
         document.getElementById('pen-color').addEventListener('input', (e) => {
             penColor = e.target.value;
         });
 
-        // Background Color
         document.getElementById('bg-color').addEventListener('input', (e) => {
             slides[currentSlideIndex].backgroundColor = e.target.value;
             redrawCanvas();
@@ -386,7 +406,6 @@
         
         function updateSlideCount() {
             document.getElementById('slide-count').textContent = `Slide ${currentSlideIndex + 1} of ${slides.length}`;
-            // Update BG Color picker to reflect current slide's BG
             document.getElementById('bg-color').value = slides[currentSlideIndex].backgroundColor;
         }
 
@@ -416,26 +435,80 @@
             }
         });
 
-        // --- Save Function ---
-        document.getElementById('save-btn').addEventListener('click', () => {
-            // Create a temporary canvas to include the background color
+        // --- Save PNG Function (Helper) ---
+        function getSlideDataURL(slideIndex) {
+            const slide = slides[slideIndex];
             const tempCanvas = document.createElement('canvas');
             const tempCtx = tempCanvas.getContext('2d');
             tempCanvas.width = canvas.width;
             tempCanvas.height = canvas.height;
             
             // Draw background
-            tempCtx.fillStyle = slides[currentSlideIndex].backgroundColor;
+            tempCtx.fillStyle = slide.backgroundColor;
             tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
             
-            // Draw the current canvas content (only the strokes)
-            tempCtx.drawImage(canvas, 0, 0);
+            // Re-render all objects from the slide array onto the temp canvas
+            // NOTE: For simplicity, we just draw the main canvas content here.
+            // A perfect solution would re-run the redraw logic for just the objects.
+            // For now, let's use the main canvas's current state (which is the current slide).
+            if (slideIndex === currentSlideIndex) {
+                tempCtx.drawImage(canvas, 0, 0);
+            } else {
+                // If saving a different slide, a full redraw function would be needed here.
+                // For this MVP, only the current slide will save correctly.
+                alert("Please navigate to the slide you want to save as PNG.");
+                return null;
+            }
 
-            // Trigger download
-            const link = document.createElement('a');
-            link.download = `whiteboard_slide_${currentSlideIndex + 1}.png`;
-            link.href = tempCanvas.toDataURL('image/png');
-            link.click();
+            return tempCanvas.toDataURL('image/png');
+        }
+
+        // --- Save PNG (Single Slide) ---
+        document.getElementById('save-png-btn').addEventListener('click', () => {
+            const dataURL = getSlideDataURL(currentSlideIndex);
+            if (dataURL) {
+                const link = document.createElement('a');
+                link.download = `whiteboard_slide_${currentSlideIndex + 1}.png`;
+                link.href = dataURL;
+                link.click();
+            }
+        });
+        
+        // --- Save PDF (All Slides) ---
+        document.getElementById('save-pdf-btn').addEventListener('click', async () => {
+            const doc = new jsPDF('landscape', 'px', 'a4');
+            const pdfWidth = doc.internal.pageSize.getWidth();
+            const pdfHeight = doc.internal.pageSize.getHeight();
+            
+            // Calculate scale to fit the canvas to PDF page
+            const scale = Math.min(pdfWidth / canvas.width, pdfHeight / canvas.height);
+            
+            // Loop through all slides
+            for (let i = 0; i < slides.length; i++) {
+                // Temporarily switch to the slide to render it fully
+                const originalIndex = currentSlideIndex;
+                currentSlideIndex = i;
+                redrawCanvas();
+                
+                // Get the Data URL of the rendered canvas (including background)
+                const dataURL = canvas.toDataURL('image/jpeg', 0.8); // JPEG is smaller than PNG
+
+                if (i !== 0) {
+                    doc.addPage();
+                }
+                
+                // Add the image to the PDF, scaled to fit the page
+                doc.addImage(dataURL, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+                
+                // Switch back to the original slide after processing
+                if (i === slides.length - 1) {
+                    currentSlideIndex = originalIndex;
+                    redrawCanvas(); // Redraw the user's current view
+                    updateSlideCount();
+                }
+            }
+
+            doc.save('whiteboard_presentation.pdf');
         });
 
         // Initial setup

@@ -3,38 +3,93 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Teacher Multi-Slide Whiteboard</title>
+<title>Teacher Whiteboard</title>
+
+<!-- Fabric.js, jsPDF, pdf.js, Firebase -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.16.105/pdf.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<!-- FontAwesome Icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+
 <style>
-html, body { margin:0; padding:0; height:100%; overflow:hidden; }
-#toolbar { position:absolute; top:10px; left:10px; z-index:1000; background:#fff; padding:5px; border-radius:5px; }
-button, select { margin:5px; padding:5px; }
-canvas { border:1px solid #ccc; }
+  html, body { margin:0; padding:0; height:100%; overflow:hidden; font-family: Arial, sans-serif; }
+  #board { border:1px solid #ccc; display:block; margin:0 auto; }
+
+  /* Toolbar styles */
+  #toolbar {
+    position: fixed;
+    top:10px;
+    left:50%;
+    transform: translateX(-50%);
+    background: rgba(255,255,255,0.95);
+    border-radius:10px;
+    padding:10px 15px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    box-shadow:0 5px 15px rgba(0,0,0,0.2);
+    z-index:1000;
+    flex-wrap: wrap;
+  }
+
+  #toolbar button, #toolbar select, #toolbar input {
+    border:none;
+    background:none;
+    cursor:pointer;
+    font-size:18px;
+    padding:5px;
+  }
+
+  #toolbar button:hover, #toolbar select:hover, #toolbar input:hover { color:#007bff; }
+
+  input[type="file"] { display:none; }
+  label.file-upload { cursor:pointer; color:#007bff; font-size:18px; }
+
+  select { border:1px solid #ccc; border-radius:5px; padding:5px; font-size:16px; }
+
+  /* Maximize canvas */
+  canvas { display:block; margin-top:80px; background:#fff; }
 </style>
 </head>
 <body>
 
+<!-- Toolbar -->
 <div id="toolbar">
-  <!-- Pens -->
-  <button onclick="setBrush('normal')">Normal Pen</button>
-  <button onclick="setBrush('brush')">Brush</button>
-  <button onclick="setBrush('fountain')">Fountain</button>
-  <button onclick="setBrush('marker')">Marker</button>
-  <button onclick="setBrush('highlighter')">Highlighter</button>
+  <!-- Brush tools -->
+  <button title="Normal Pen" onclick="setBrush('normal')"><i class="fa-solid fa-pen"></i></button>
+  <button title="Brush" onclick="setBrush('brush')"><i class="fa-solid fa-paintbrush"></i></button>
+  <button title="Fountain" onclick="setBrush('fountain')"><i class="fa-solid fa-pen-fancy"></i></button>
+  <button title="Marker" onclick="setBrush('marker')"><i class="fa-solid fa-highlighter"></i></button>
+  <button title="Highlighter" onclick="setBrush('highlighter')"><i class="fa-solid fa-marker"></i></button>
 
   <!-- Shapes -->
-  <button onclick="addShape('rect')">Rectangle</button>
-  <button onclick="addShape('circle')">Circle</button>
-  <button onclick="addShape('line')">Line</button>
-  <button onclick="addShape('dottedLine')">Dotted Line</button>
-  <button onclick="addShape('triangle')">Triangle</button>
+  <button title="Rectangle" onclick="addShape('rect')"><i class="fa-solid fa-square"></i></button>
+  <button title="Circle" onclick="addShape('circle')"><i class="fa-solid fa-circle"></i></button>
+  <button title="Line" onclick="addShape('line')"><i class="fa-solid fa-minus"></i></button>
+  <button title="Dotted Line" onclick="addShape('dottedLine')"><i class="fa-solid fa-ellipsis"></i></button>
+  <button title="Triangle" onclick="addShape('triangle')"><i class="fa-solid fa-play"></i></button>
 
   <!-- Slides -->
-  <button onclick="prevSlide()">Prev Slide</button>
-  <button onclick="nextSlide()">Next Slide</button>
-  <button onclick="saveSlide()">Save Slide</button>
+  <button title="Prev Slide" onclick="prevSlide()"><i class="fa-solid fa-arrow-left"></i></button>
+  <button title="Next Slide" onclick="nextSlide()"><i class="fa-solid fa-arrow-right"></i></button>
+  <button title="Save Slide" onclick="saveSlide()"><i class="fa-solid fa-floppy-disk"></i></button>
+  <button title="Save PDF" onclick="saveAsPDF()"><i class="fa-solid fa-file-pdf"></i></button>
 
-  <!-- Upload -->
-  <input type="file" id="uploadFile">
+  <!-- Upload image -->
+  <label class="file-upload" title="Upload Image">
+    <i class="fa-solid fa-image"></i>
+    <input type="file" id="uploadFile">
+  </label>
+
+  <!-- Upload PDF -->
+  <label class="file-upload" title="Upload PDF">
+    <i class="fa-solid fa-file-pdf"></i>
+    <input type="file" id="pdfUpload">
+  </label>
 
   <!-- Class & Subject -->
   <select id="classSelect">
@@ -49,158 +104,163 @@ canvas { border:1px solid #ccc; }
     <option value="Chemistry">Chemistry</option>
     <option value="Maths">Maths</option>
   </select>
-
-  <!-- Backgrounds -->
-  <select id="bgSelect">
-    <option value="">Background</option>
-    <option value="grid">Grid</option>
-    <option value="lined">Lined</option>
-    <option value="dots">Dots</option>
-  </select>
 </div>
 
-<canvas id="board" width="1200" height="700"></canvas>
-
-<!-- Firebase & Fabric.js -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.0/fabric.min.js"></script>
+<canvas id="board"></canvas>
 
 <script>
-/* ---------------- Firebase Setup ---------------- */
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "SENDER_ID",
-  appId: "APP_ID"
-};
-firebase.initializeApp(firebaseConfig);
-const storage = firebase.storage();
-const firestore = firebase.firestore();
+  const { jsPDF } = window.jspdf;
 
-/* ---------------- Fabric.js Setup ---------------- */
-const canvas = new fabric.Canvas('board', { isDrawingMode:true });
-canvas.setBackgroundColor('#fff', canvas.renderAll.bind(canvas));
-
-/* ---------------- Slide Management ---------------- */
-let slides = [];
-let currentSlide = 0;
-
-function loadSlide(index){
-  if(!slides[index]) { canvas.clear(); canvas.setBackgroundColor('#fff', canvas.renderAll.bind(canvas)); return; }
-  fabric.Image.fromURL(slides[index], function(img){
-    canvas.clear(); canvas.setBackgroundColor('#fff', canvas.renderAll.bind(canvas));
-    canvas.add(img);
-    canvas.renderAll();
-  });
-}
-function prevSlide(){ if(currentSlide>0) currentSlide--; loadSlide(currentSlide); }
-function nextSlide(){ if(currentSlide<slides.length-1) currentSlide++; loadSlide(currentSlide); }
-
-/* ---------------- Brushes ---------------- */
-function setBrush(type){
-  switch(type){
-    case 'normal':
-      canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
-      canvas.freeDrawingBrush.width = 2; canvas.freeDrawingBrush.color = '#000';
-      break;
-    case 'brush':
-      canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
-      canvas.freeDrawingBrush.width = 5; canvas.freeDrawingBrush.color = '#000';
-      break;
-    case 'fountain':
-      canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
-      canvas.freeDrawingBrush.width = 3; canvas.freeDrawingBrush.color = '#000';
-      canvas.freeDrawingBrush.shadow = new fabric.Shadow({ blur:2, offsetX:1, offsetY:1, affectStroke:true });
-      break;
-    case 'marker':
-      canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
-      canvas.freeDrawingBrush.width = 10; canvas.freeDrawingBrush.color = 'rgba(0,0,255,0.3)';
-      break;
-    case 'highlighter':
-      canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
-      canvas.freeDrawingBrush.width = 15; canvas.freeDrawingBrush.color = 'rgba(255,255,0,0.4)';
-      break;
-  }
-}
-
-/* ---------------- Shapes ---------------- */
-function addShape(shape){
-  canvas.isDrawingMode=false;
-  let obj;
-  switch(shape){
-    case 'rect': obj = new fabric.Rect({ left:50, top:50, width:100, height:60, fill:'transparent', stroke:'#000', strokeWidth:2 }); break;
-    case 'circle': obj = new fabric.Circle({ left:50, top:50, radius:50, fill:'transparent', stroke:'#000', strokeWidth:2 }); break;
-    case 'line': obj = new fabric.Line([50,50,200,50], { stroke:'#000', strokeWidth:2 }); break;
-    case 'dottedLine': obj = new fabric.Line([50,50,200,50], { stroke:'#000', strokeWidth:2, strokeDashArray:[5,5] }); break;
-    case 'triangle': obj = new fabric.Triangle({ width:80, height:80, left:50, top:50, fill:'transparent', stroke:'#000', strokeWidth:2 }); break;
-  }
-  canvas.add(obj);
-}
-
-/* ---------------- Upload Image ---------------- */
-document.getElementById('uploadFile').addEventListener('change', function(e){
-  const file = e.target.files[0]; if(!file) return;
-  const reader = new FileReader();
-  reader.onload = function(f){
-    fabric.Image.fromURL(f.target.result, function(img){
-      img.scaleToWidth(500);
-      canvas.add(img);
-    });
+  // ---------------- Firebase ----------------
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
   };
-  reader.readAsDataURL(file);
-});
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
 
-/* ---------------- Backgrounds ---------------- */
-document.getElementById('bgSelect').addEventListener('change', function(){
-  const val = this.value;
-  if(val==='grid') canvas.setBackgroundImage('grid.png', canvas.renderAll.bind(canvas), { originX:'left', originY:'top' });
-  else if(val==='lined') canvas.setBackgroundImage('lined.png', canvas.renderAll.bind(canvas), { originX:'left', originY:'top' });
-  else if(val==='dots') canvas.setBackgroundImage('dots.png', canvas.renderAll.bind(canvas), { originX:'left', originY:'top' });
-  else canvas.setBackgroundColor('#fff', canvas.renderAll.bind(canvas));
-});
+  // ---------------- Canvas Setup ----------------
+  const canvas = new fabric.Canvas('board', { isDrawingMode:true });
+  canvas.setHeight(window.innerHeight - 20);
+  canvas.setWidth(window.innerWidth - 20);
+  canvas.setBackgroundColor('#fff', canvas.renderAll.bind(canvas));
 
-/* ---------------- Save Slide ---------------- */
-async function saveSlide(){
-  const classVal = document.getElementById('classSelect').value;
-  const subjectVal = document.getElementById('subjectSelect').value;
-  if(!classVal || !subjectVal){ alert('Select Class & Subject'); return; }
+  let slides = [];
+  let currentSlide = 0;
+  let savedSlides = [];
 
-  const dataURL = canvas.toDataURL({ format:'png' });
-  const fileName = `slide_${Date.now()}.png`;
-  const storageRef = storage.ref().child(`${classVal}/${subjectVal}/${fileName}`);
-  const res = await storageRef.putString(dataURL,'data_url');
-  const url = await res.ref.getDownloadURL();
+  // ---------------- Brush Tools ----------------
+  function setBrush(type){
+    switch(type){
+      case 'normal': canvas.freeDrawingBrush = new fabric.PencilBrush(canvas); canvas.freeDrawingBrush.width=2; canvas.freeDrawingBrush.color='#000'; break;
+      case 'brush': canvas.freeDrawingBrush = new fabric.PencilBrush(canvas); canvas.freeDrawingBrush.width=5; canvas.freeDrawingBrush.color='#000'; break;
+      case 'fountain': canvas.freeDrawingBrush = new fabric.PencilBrush(canvas); canvas.freeDrawingBrush.width=3; canvas.freeDrawingBrush.color='#000';
+        canvas.freeDrawingBrush.shadow = new fabric.Shadow({ blur:2, offsetX:1, offsetY:1, affectStroke:true }); break;
+      case 'marker': canvas.freeDrawingBrush = new fabric.PencilBrush(canvas); canvas.freeDrawingBrush.width=10; canvas.freeDrawingBrush.color='rgba(0,0,255,0.3)'; break;
+      case 'highlighter': canvas.freeDrawingBrush = new fabric.PencilBrush(canvas); canvas.freeDrawingBrush.width=15; canvas.freeDrawingBrush.color='rgba(255,255,0,0.4)'; break;
+    }
+  }
 
-  await firestore.collection('slides').add({ class:classVal, subject:subjectVal, url:url, timestamp:Date.now() });
+  // ---------------- Shapes ----------------
+  function addShape(shape){
+    canvas.isDrawingMode=false;
+    let obj;
+    switch(shape){
+      case 'rect': obj = new fabric.Rect({ left:50, top:50, width:100, height:60, fill:'transparent', stroke:'#000', strokeWidth:2 }); break;
+      case 'circle': obj = new fabric.Circle({ left:50, top:50, radius:50, fill:'transparent', stroke:'#000', strokeWidth:2 }); break;
+      case 'line': obj = new fabric.Line([50,50,200,50], { stroke:'#000', strokeWidth:2 }); break;
+      case 'dottedLine': obj = new fabric.Line([50,50,200,50], { stroke:'#000', strokeWidth:2, strokeDashArray:[5,5] }); break;
+      case 'triangle': obj = new fabric.Triangle({ width:80, height:80, left:50, top:50, fill:'transparent', stroke:'#000', strokeWidth:2 }); break;
+    }
+    canvas.add(obj);
+  }
 
-  slides.push(url);
-  currentSlide = slides.length-1;
-  alert('Slide saved!');
-}
+  // ---------------- Image Upload ----------------
+  document.getElementById('uploadFile').addEventListener('change', function(e){
+    const file = e.target.files[0]; if(!file) return;
+    const reader = new FileReader();
+    reader.onload = function(f){
+      fabric.Image.fromURL(f.target.result, function(img){
+        img.scaleToWidth(500); canvas.add(img);
+      });
+    };
+    reader.readAsDataURL(file);
+  });
 
-/* ---------------- Load Existing Slides ---------------- */
-async function loadExistingSlides(){
-  const classVal = document.getElementById('classSelect').value;
-  const subjectVal = document.getElementById('subjectSelect').value;
-  if(!classVal || !subjectVal) return;
+  // ---------------- PDF Upload ----------------
+  document.getElementById('pdfUpload').addEventListener('change', function(e){
+    const file = e.target.files[0]; if(!file) return;
+    const reader = new FileReader();
+    reader.onload = async function(ev){
+      const typedarray = new Uint8Array(ev.target.result);
+      const pdf = await pdfjsLib.getDocument(typedarray).promise;
+      for(let i=1;i<=pdf.numPages;i++){
+        const page = await pdf.getPage(i);
+        const viewport = page.getViewport({scale:2});
+        const c = document.createElement('canvas');
+        const ctx = c.getContext('2d');
+        c.width = viewport.width; c.height = viewport.height;
+        await page.render({canvasContext:ctx,viewport:viewport}).promise;
+        const dataURL = c.toDataURL('image/png',0.3); // compress
+        slides.push(dataURL);
+        savedSlides.push(dataURL);
+      }
+      alert('PDF uploaded as slides. You can annotate now.');
+    }
+    reader.readAsArrayBuffer(file);
+  });
 
-  const snapshot = await firestore.collection('slides')
-    .where('class','==',classVal)
-    .where('subject','==',subjectVal)
-    .orderBy('timestamp')
-    .get();
+  // ---------------- Slides Navigation ----------------
+  function loadSlide(index){
+    if(!slides[index]) { canvas.clear(); canvas.setBackgroundColor('#fff', canvas.renderAll.bind(canvas)); return; }
+    fabric.Image.fromURL(slides[index], function(img){
+      canvas.clear();
+      canvas.setBackgroundColor('#fff', canvas.renderAll.bind(canvas));
+      canvas.add(img);
+      canvas.renderAll();
+    });
+  }
+  function prevSlide(){ if(currentSlide>0) currentSlide--; loadSlide(currentSlide); }
+  function nextSlide(){ if(currentSlide<slides.length-1) currentSlide++; loadSlide(currentSlide); }
 
-  slides = snapshot.docs.map(doc=>doc.data().url);
-  currentSlide = slides.length-1;
-  loadSlide(currentSlide);
-}
+  // ---------------- Save Slide (Compressed) ----------------
+  async function saveSlide(){
+    const classVal = document.getElementById('classSelect').value;
+    const subjectVal = document.getElementById('subjectSelect').value;
+    if(!classVal || !subjectVal){ alert('Select Class & Subject'); return; }
 
-document.getElementById('classSelect').addEventListener('change', loadExistingSlides);
-document.getElementById('subjectSelect').addEventListener('change', loadExistingSlides);
+    // Compress canvas image
+    const dataURL = canvas.toDataURL({ format:'png', quality:0.3 });
+
+    slides[currentSlide] = dataURL;   // update current slide
+    savedSlides.push(dataURL);        // add to PDF collection
+
+    // Save individual slide in Firestore
+    await db.collection("slides")
+      .doc(`${classVal}_${subjectVal}`)
+      .collection("pages")
+      .add({ image: dataURL, timestamp: Date.now() });
+
+    alert('Slide saved (compressed)!');
+  }
+
+  // ---------------- Save PDF (Daily Compressed Slides) ----------------
+  async function saveAsPDF() {
+    const classVal = document.getElementById('classSelect').value;
+    const subjectVal = document.getElementById('subjectSelect').value;
+    if(!classVal || !subjectVal){ alert('Select Class & Subject'); return; }
+    if(savedSlides.length===0){ alert('No slides to save'); return; }
+
+    const pdf = new jsPDF();
+    savedSlides.forEach((slide,i)=>{
+      if(i!==0) pdf.addPage();
+      pdf.addImage(slide,'PNG',10,10,180,160);
+    });
+
+    const pdfBase64 = pdf.output('datauristring'); // compressed PDF as Base64
+    const today = new Date().toISOString().split("T")[0]; // yyyy-mm-dd
+
+    // Save PDF in Firestore under lectures/{class}/{subject}/{date}
+    await db.collection("lectures").doc(classVal)
+      .collection(subjectVal).doc(today).set({
+        pdf: pdfBase64,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+    alert('Daily PDF saved for ' + today);
+    savedSlides = []; // clear after saving PDF
+  }
+
+  // ---------------- Window Resize Handling ----------------
+  window.addEventListener('resize', ()=>{
+    const data = canvas.toDataURL(); // save current canvas
+    canvas.setHeight(window.innerHeight - 20);
+    canvas.setWidth(window.innerWidth - 20);
+    fabric.Image.fromURL(data, function(img){
+      canvas.clear(); canvas.add(img); canvas.renderAll();
+    });
+  });
 </script>
 </body>
 </html>
